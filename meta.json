@@ -12,8 +12,6 @@
   "entrypoint": "gripper-gpio",
   "build": {
     "build": "make module",
-    "setup": "",
-    "path": "",
     "arch": [
       "linux/amd64",
       "linux/arm64",
