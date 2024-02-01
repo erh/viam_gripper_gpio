@@ -1,0 +1,17 @@
+{
+    "module_id": "erh:gripper-gpio",
+    "visibility": "public",
+    "url": "https://github.com/erh/viam-gripper-gpio",
+    "description": "gpio based gripper",
+    "models": [
+        {
+            "api": "",
+            "model": ""
+        }
+    ],
+    "build": {
+        "build": "make module",
+        "arch" : ["linux/amd64", "linux/arm64", "darwin/arm64"]
+    },
+  "entrypoint": ""
+}
