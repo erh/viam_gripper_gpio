@@ -1,6 +1,6 @@
 
 gripper-gpio: *.go cmd/module/*.go
-	go build -o gripper-gpio cmd/module/cmd.go
+	go build -tags netgo,osusergo -o gripper-gpio cmd/module/cmd.go
 
 test:
 	go test
