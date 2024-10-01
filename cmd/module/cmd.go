@@ -31,6 +31,11 @@ func realMain() error {
 		return err
 	}
 
+	err = myMod.AddModelFromRegistry(ctx, gripper.API, viam_gripper_gpio.GripperPressModel)
+	if err != nil {
+		return err
+	}
+
 	err = myMod.Start(ctx)
 	defer myMod.Close(ctx)
 	if err != nil {

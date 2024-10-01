@@ -15,8 +15,8 @@ import (
 var GripperModel = resource.ModelNamespace("erh").WithFamily("viam_gripper_gpio").WithModel("gripper")
 
 type Config struct {
-	Board string
-	Pin string
+	Board    string
+	Pin      string
 	OpenHigh bool `json:"open_high"`
 }
 
@@ -49,8 +49,8 @@ func newGripper(ctx context.Context, deps resource.Dependencies, config resource
 	}
 
 	g := &myGripper{
-		name:   config.ResourceName(),
-		mf: referenceframe.NewSimpleModel("foo"),
+		name: config.ResourceName(),
+		mf:   referenceframe.NewSimpleModel("foo"),
 		conf: newConf,
 	}
 
@@ -63,20 +63,19 @@ func newGripper(ctx context.Context, deps resource.Dependencies, config resource
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return g, nil
 }
 
 type myGripper struct {
 	resource.AlwaysRebuild
 
-	name   resource.Name
-	mf     referenceframe.Model
+	name resource.Name
+	mf   referenceframe.Model
 
 	conf *Config
-	
+
 	pin board.GPIOPin
-	
 }
 
 func (g *myGripper) Grab(ctx context.Context, extra map[string]interface{}) (bool, error) {

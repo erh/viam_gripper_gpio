@@ -1,4 +1,5 @@
 {
+  "$schema": "",
   "module_id": "erh:gripper-gpio",
   "visibility": "public",
   "url": "https://github.com/erh/viam-gripper-gpio",
@@ -7,11 +8,17 @@
     {
       "api": "rdk:component:gripper",
       "model": "erh:viam_gripper_gpio:gripper"
+    },
+    {
+      "api": "rdk:component:gripper",
+      "model": "erh:viam_gripper_gpio:gripper-press"
     }
   ],
   "entrypoint": "gripper-gpio",
   "build": {
     "build": "make module",
+    "setup": "",
+    "path": "module.tar.gz",
     "arch": [
       "linux/amd64",
       "linux/arm64",
