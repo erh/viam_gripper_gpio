@@ -85,8 +85,15 @@ type myGripperPress struct {
 	open bool
 }
 
+func force(extra map[string]interface{}) bool {
+	if extra == nil {
+		return false
+	}
+	return extra["force"] == true
+}
+
 func (g *myGripperPress) Grab(ctx context.Context, extra map[string]interface{}) (bool, error) {
-	if !g.open {
+	if !force(extra) && !g.open {
 		return false, nil
 	}
 	g.open = false
@@ -103,7 +110,7 @@ func (g *myGripperPress) press(ctx context.Context, extra map[string]interface{}
 }
 
 func (g *myGripperPress) Open(ctx context.Context, extra map[string]interface{}) error {
-	if g.open {
+	if !force(extra) && g.open {
 		return nil
 	}
 	g.open = true
