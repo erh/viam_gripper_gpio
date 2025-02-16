@@ -7,12 +7,31 @@
   "models": [
     {
       "api": "rdk:component:gripper",
-      "model": "erh:viam_gripper_gpio:gripper"
+      "model": "erh:viam_gripper_gpio:gripper",
+      "markdown_link": "README.md#gripper",
+      "short_description": "GPIO Gripper"
+
     },
     {
       "api": "rdk:component:gripper",
-      "model": "erh:viam_gripper_gpio:gripper-press"
+      "model": "erh:viam_gripper_gpio:gripper-press",
+      "markdown_link": "README.md#gripper-press",
+      "short_description": "GPIO Gripper - press to open/close"
+    },
+    {
+      "api": "rdk:component:button",
+      "model": "erh:viam_gripper_gpio:button",
+      "markdown_link": "README.md#button",
+      "short_description": "GPIO Button"
+    },
+     {
+      "api": "rdk:component:switch",
+      "model": "erh:viam_gripper_gpio:switch",
+      "markdown_link": "README.md#switch",
+      "short_description": "GPIO Switch"
     }
+
+
   ],
   "entrypoint": "gripper-gpio",
   "build": {

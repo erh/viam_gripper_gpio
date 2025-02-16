@@ -1,46 +1,20 @@
 package main
 
 import (
-	"context"
-
+	"go.viam.com/rdk/components/button"
 	"go.viam.com/rdk/components/gripper"
-	"go.viam.com/rdk/logging"
+	"go.viam.com/rdk/components/switch"
 	"go.viam.com/rdk/module"
+	"go.viam.com/rdk/resource"
 
 	"github.com/erh/viam_gripper_gpio"
 )
 
 func main() {
-	err := realMain()
-	if err != nil {
-		panic(err)
-	}
-}
-func realMain() error {
-
-	ctx := context.Background()
-	logger := logging.NewDebugLogger("client")
-
-	myMod, err := module.NewModuleFromArgs(ctx, logger)
-	if err != nil {
-		return err
-	}
-
-	err = myMod.AddModelFromRegistry(ctx, gripper.API, viam_gripper_gpio.GripperModel)
-	if err != nil {
-		return err
-	}
-
-	err = myMod.AddModelFromRegistry(ctx, gripper.API, viam_gripper_gpio.GripperPressModel)
-	if err != nil {
-		return err
-	}
-
-	err = myMod.Start(ctx)
-	defer myMod.Close(ctx)
-	if err != nil {
-		return err
-	}
-	<-ctx.Done()
-	return nil
+	module.ModularMain(
+		resource.APIModel{gripper.API, viam_gripper_gpio.GripperModel},
+		resource.APIModel{gripper.API, viam_gripper_gpio.GripperPressModel},
+		resource.APIModel{button.API, viam_gripper_gpio.ButtonModel},
+		resource.APIModel{toggleswitch.API, viam_gripper_gpio.SwitchModel},
+	)
 }
