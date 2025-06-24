@@ -16,9 +16,12 @@ import (
 var GripperPressModel = family.WithModel("gripper-press")
 
 type ConfigPress struct {
-	Board   string
-	Pin     string
-	Seconds int
+	Board    string
+	GrabPins map[string]bool `json:"grab_pins"`
+	OpenPins map[string]bool `json:"open_pins"`
+	WaitPins map[string]bool `json:"wait_pins,omitempty"`
+	OpenTime int             `json:"open_time_ms,omitempty"`
+	GrabTime int             `json:"grab_time_ms,omitempty"`
 }
 
 func (cfg *ConfigPress) Validate(path string) ([]string, error) {
@@ -26,12 +29,15 @@ func (cfg *ConfigPress) Validate(path string) ([]string, error) {
 		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
-	if cfg.Pin == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+	if len(cfg.GrabPins) == 0 {
+		return nil, utils.NewConfigValidationFieldRequiredError(path, "grab_pins")
+	}
+
+	if len(cfg.OpenPins) == 0 {
+		return nil, utils.NewConfigValidationFieldRequiredError(path, "open_pins")
 	}
 
 	return []string{cfg.Board}, nil
-
 }
 
 func init() {
@@ -55,16 +61,15 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 		conf: newConf,
 	}
 
-	if g.conf.Seconds <= 0 {
-		g.conf.Seconds = 3
+	if g.conf.GrabTime <= 0 {
+		g.conf.GrabTime = 3000
 	}
 
-	b, err := board.FromDependencies(deps, newConf.Board)
-	if err != nil {
-		return nil, err
+	if g.conf.OpenTime <= 0 {
+		g.conf.OpenTime = 3000
 	}
 
-	g.pin, err = b.GPIOPinByName(newConf.Pin)
+	g.board, err = board.FromDependencies(deps, newConf.Board)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +85,7 @@ type myGripperPress struct {
 
 	conf *ConfigPress
 
-	pin board.GPIOPin
+	board board.Board
 
 	open bool
 }
@@ -97,16 +102,59 @@ func (g *myGripperPress) Grab(ctx context.Context, extra map[string]interface{})
 		return false, nil
 	}
 	g.open = false
-	return false, g.press(ctx, extra)
+	return false, g.press(ctx, extra, g.conf.GrabPins, g.conf.GrabTime)
 }
 
-func (g *myGripperPress) press(ctx context.Context, extra map[string]interface{}) error {
-	err := g.pin.Set(ctx, true, extra)
-	if err != nil {
-		return err
+func (g *myGripperPress) press(ctx context.Context, extra map[string]interface{}, pins map[string]bool, duration int) error {
+	if len(g.conf.WaitPins) > 0 {
+		for waitPinName, waitState := range g.conf.WaitPins {
+			waitPin, err := g.board.GPIOPinByName(waitPinName)
+			if err != nil {
+				return err
+			}
+			err = waitPin.Set(ctx, waitState, extra)
+			if err != nil {
+				return err
+			}
+		}
 	}
-	time.Sleep(time.Second * time.Duration(g.conf.Seconds))
-	return g.pin.Set(ctx, false, extra)
+	for pinName, state := range pins {
+		pin, err := g.board.GPIOPinByName(pinName)
+		if err != nil {
+			return err
+		}
+		err = pin.Set(ctx, state, extra)
+		if err != nil {
+			return err
+		}
+	}
+	if duration == 0 {
+		return nil
+	}
+	time.Sleep(time.Millisecond * time.Duration(duration))
+	for pinName, state := range pins {
+		pin, err := g.board.GPIOPinByName(pinName)
+		if err != nil {
+			return err
+		}
+		err = pin.Set(ctx, !state, extra)
+		if err != nil {
+			return err
+		}
+	}
+	if len(g.conf.WaitPins) > 0 {
+		for waitPinName, waitState := range g.conf.WaitPins {
+			waitPin, err := g.board.GPIOPinByName(waitPinName)
+			if err != nil {
+				return err
+			}
+			err = waitPin.Set(ctx, !waitState, extra)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (g *myGripperPress) Open(ctx context.Context, extra map[string]interface{}) error {
@@ -114,7 +162,7 @@ func (g *myGripperPress) Open(ctx context.Context, extra map[string]interface{})
 		return nil
 	}
 	g.open = true
-	return g.press(ctx, extra)
+	return g.press(ctx, extra, g.conf.OpenPins, g.conf.OpenTime)
 }
 
 func (g *myGripperPress) Name() resource.Name {
