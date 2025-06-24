@@ -57,15 +57,15 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 
 	g := &myGripperPress{
 		name: config.ResourceName(),
-		mf:   referenceframe.NewSimpleModel("foo"),
+		mf:   referenceframe.NewSimpleModel(config.ResourceName().String()),
 		conf: newConf,
 	}
 
-	if g.conf.GrabTime <= 0 {
+	if g.conf.GrabTime < 0 {
 		g.conf.GrabTime = 3000
 	}
 
-	if g.conf.OpenTime <= 0 {
+	if g.conf.OpenTime < 0 {
 		g.conf.OpenTime = 3000
 	}
 
@@ -101,59 +101,66 @@ func (g *myGripperPress) Grab(ctx context.Context, extra map[string]interface{})
 	if !force(extra) && !g.open {
 		return false, nil
 	}
-	g.open = false
-	return false, g.press(ctx, extra, g.conf.GrabPins, g.conf.GrabTime)
-}
 
-func (g *myGripperPress) press(ctx context.Context, extra map[string]interface{}, pins map[string]bool, duration int) error {
+	// Set any wait pins to their active state
 	if len(g.conf.WaitPins) > 0 {
-		for waitPinName, waitState := range g.conf.WaitPins {
-			waitPin, err := g.board.GPIOPinByName(waitPinName)
-			if err != nil {
-				return err
-			}
-			err = waitPin.Set(ctx, waitState, extra)
-			if err != nil {
-				return err
-			}
+		err := g.setPins(ctx, g.conf.WaitPins, true, extra)
+		if err != nil {
+			return false, err
 		}
 	}
+
+	// Set open pins to their inactive state
+	err := g.setPins(ctx, g.conf.OpenPins, false, extra)
+	if err != nil {
+		return false, err
+	}
+
+	// Set the grab pins to their active state
+	err = g.setPins(ctx, g.conf.GrabPins, true, extra)
+	if err != nil {
+		return false, err
+	}
+	g.open = false
+
+	// Return early if no grab time is specified
+	if g.conf.GrabTime == 0 {
+		return false, nil
+	}
+	time.Sleep(time.Millisecond * time.Duration(g.conf.GrabTime))
+
+	// Set the grab pins to their inactive state
+	err = g.setPins(ctx, g.conf.GrabPins, false, extra)
+	if err != nil {
+		return false, err
+	}
+
+	// Set any wait pins to their inactive state
+	if len(g.conf.WaitPins) > 0 {
+		err = g.setPins(ctx, g.conf.WaitPins, false, extra)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
+}
+
+func (g *myGripperPress) setPins(ctx context.Context, pins map[string]bool, activate bool, extra map[string]interface{}) error {
 	for pinName, state := range pins {
 		pin, err := g.board.GPIOPinByName(pinName)
 		if err != nil {
 			return err
+		}
+		if !activate {
+			state = !state
 		}
 		err = pin.Set(ctx, state, extra)
 		if err != nil {
 			return err
 		}
 	}
-	if duration == 0 {
-		return nil
-	}
-	time.Sleep(time.Millisecond * time.Duration(duration))
-	for pinName, state := range pins {
-		pin, err := g.board.GPIOPinByName(pinName)
-		if err != nil {
-			return err
-		}
-		err = pin.Set(ctx, !state, extra)
-		if err != nil {
-			return err
-		}
-	}
-	if len(g.conf.WaitPins) > 0 {
-		for waitPinName, waitState := range g.conf.WaitPins {
-			waitPin, err := g.board.GPIOPinByName(waitPinName)
-			if err != nil {
-				return err
-			}
-			err = waitPin.Set(ctx, !waitState, extra)
-			if err != nil {
-				return err
-			}
-		}
-	}
+
 	return nil
 }
 
@@ -161,8 +168,49 @@ func (g *myGripperPress) Open(ctx context.Context, extra map[string]interface{})
 	if !force(extra) && g.open {
 		return nil
 	}
+
+	// Set any wait pins to their active state
+	if len(g.conf.WaitPins) > 0 {
+		err := g.setPins(ctx, g.conf.WaitPins, true, extra)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Set grab pins to their inactive state
+	err := g.setPins(ctx, g.conf.GrabPins, false, extra)
+	if err != nil {
+		return err
+	}
+
+	// Set the open pins to their active state
+	err = g.setPins(ctx, g.conf.OpenPins, true, extra)
+	if err != nil {
+		return err
+	}
 	g.open = true
-	return g.press(ctx, extra, g.conf.OpenPins, g.conf.OpenTime)
+
+	// Return early if no open time is specified
+	if g.conf.OpenTime == 0 {
+		return nil
+	}
+	time.Sleep(time.Millisecond * time.Duration(g.conf.OpenTime))
+
+	// Set the open pins to their inactive state
+	err = g.setPins(ctx, g.conf.OpenPins, false, extra)
+	if err != nil {
+		return err
+	}
+
+	// Set any wait pins to their inactive state
+	if len(g.conf.WaitPins) > 0 {
+		err = g.setPins(ctx, g.conf.WaitPins, false, extra)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (g *myGripperPress) Name() resource.Name {
