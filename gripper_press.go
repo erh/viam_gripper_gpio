@@ -20,9 +20,9 @@ type ConfigPress struct {
 	Board   string
 	Pin     string // The pin to use for the gripper, if not using grab_pins or open_pins
 	Seconds *int
-	GrabPins map[string]bool `json:"grab_pins"`
-	OpenPins map[string]bool `json:"open_pins"`
-	WaitPins map[string]bool `json:"wait_pins,omitempty"`
+	GrabPins map[string]string `json:"grab_pins"`
+	OpenPins map[string]string `json:"open_pins"`
+	WaitPins map[string]string `json:"wait_pins,omitempty"`
 	OpenTime *int             `json:"open_time_ms,omitempty"`
 	GrabTime *int             `json:"grab_time_ms,omitempty"`
 }
@@ -46,6 +46,24 @@ func (cfg *ConfigPress) Validate(path string) ([]string, error) {
 
 	if cfg.Pin == "" && len(cfg.OpenPins) == 0 {
 		return nil, utils.NewConfigValidationError(path, errors.New("open_pins must not be empty"))
+	}
+
+	for _, state := range cfg.GrabPins {
+		if state != "high" && state != "low" {
+			return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
+		}
+	}
+
+	for _, state := range cfg.GrabPins {
+		if state != "high" && state != "low" {
+			return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
+		}
+	}
+
+	for _, state := range cfg.GrabPins {
+		if state != "high" && state != "low" {
+			return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
+		}
 	}
 
 	return []string{cfg.Board}, nil
@@ -87,8 +105,7 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 	}
 
 	if g.conf.Pin != "" {
-		g.pins = make(map[string]bool)
-		g.pins[g.conf.Pin] = true
+		g.pins = map[string]string{g.conf.Pin: "high"}
 	}
 
 	g.board, err = board.FromDependencies(deps, newConf.Board)
@@ -107,7 +124,7 @@ type myGripperPress struct {
 
 	conf *ConfigPress
 
-	pins map[string]bool
+	pins map[string]string
 	board board.Board
 
 	open bool
@@ -188,12 +205,13 @@ func (g *myGripperPress) Grab(ctx context.Context, extra map[string]interface{})
 	return false, nil
 }
 
-func (g *myGripperPress) setPins(ctx context.Context, pins map[string]bool, activate bool, extra map[string]interface{}) error {
-	for pinName, state := range pins {
+func (g *myGripperPress) setPins(ctx context.Context, pins map[string]string, activate bool, extra map[string]interface{}) error {
+	for pinName, level := range pins {
 		pin, err := g.board.GPIOPinByName(pinName)
 		if err != nil {
 			return err
 		}
+		state := level == "high"
 		if !activate {
 			state = !state
 		}

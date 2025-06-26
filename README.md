@@ -29,17 +29,18 @@ For multi pin support:
 {
   "board": "local",
   "grab_pins": {
-    "16": true // true = high, false = low
+    "16": "high"
   },
   "open_pins": {
-    "18": false // true = high, false = low
+    "18": "low""
   },
   "wait_pins": {
-    "11": true // true = high, false = low
+    "11": "high"
   },
   "grab_time_ms": 0, // optional; 0 means no timeout
   "open_time_ms": 500, // optional; 0 means no timeout
 }
+```
 
 # button
 Push turns gpio for seconds
