@@ -14,6 +14,8 @@ GPIO Controlled Gripper where open close is high or low
 
 # gripper-press
 GPIO Controlled Gripper where it holds down gpio to open or close
+
+For single pin support:
 ```
 {
   "board": "local",
@@ -21,6 +23,23 @@ GPIO Controlled Gripper where it holds down gpio to open or close
   "seconds" : 3// optional
 }
 ```
+
+For multi pin support:
+```
+{
+  "board": "local",
+  "grab_pins": {
+    "16": true // true = high, false = low
+  },
+  "open_pins": {
+    "18": false // true = high, false = low
+  },
+  "wait_pins": {
+    "11": true // true = high, false = low
+  },
+  "grab_time_ms": 0, // optional; 0 means no timeout
+  "open_time_ms": 500, // optional; 0 means no timeout
+}
 
 # button
 Push turns gpio for seconds
