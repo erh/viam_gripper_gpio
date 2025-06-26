@@ -8,8 +8,8 @@ test:
 lint:
 	gofmt -w -s .
 
-module.tar.gz: gripper-gpio meta.json
-	tar czf module.tar.gz gripper-gpio meta.json
+module.tar.gz: gripper-gpio
+	tar czf module.tar.gz gripper-gpio
 
 module: module.tar.gz
 
