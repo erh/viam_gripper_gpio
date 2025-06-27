@@ -54,15 +54,9 @@ func (cfg *ConfigPress) Validate(path string) ([]string, error) {
 		}
 	}
 
-	for _, state := range cfg.GrabPins {
+	for _, state := range cfg.OpenPins {
 		if state != "high" && state != "low" {
-			return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
-		}
-	}
-
-	for _, state := range cfg.GrabPins {
-		if state != "high" && state != "low" {
-			return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
+			return nil, utils.NewConfigValidationError(path, errors.New("open_pins must be 'high' or 'low'"))
 		}
 	}
 
