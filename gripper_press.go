@@ -17,14 +17,14 @@ import (
 var GripperPressModel = family.WithModel("gripper-press")
 
 type ConfigPress struct {
-	Board   string
-	Pin     string // The pin to use for the gripper, if not using grab_pins or open_pins
-	Seconds *int
+	Board    string
+	Pin      string // The pin to use for the gripper, if not using grab_pins or open_pins
+	Seconds  *int
 	GrabPins map[string]string `json:"grab_pins"`
 	OpenPins map[string]string `json:"open_pins"`
 	WaitPins map[string]string `json:"wait_pins,omitempty"`
-	OpenTime *int             `json:"open_time_ms,omitempty"`
-	GrabTime *int             `json:"grab_time_ms,omitempty"`
+	OpenTime *int              `json:"open_time_ms,omitempty"`
+	GrabTime *int              `json:"grab_time_ms,omitempty"`
 }
 
 func (cfg *ConfigPress) Validate(path string) ([]string, error) {
@@ -32,7 +32,7 @@ func (cfg *ConfigPress) Validate(path string) ([]string, error) {
 		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
-	if cfg.Pin == "" && (cfg.GrabPins == nil && cfg.OpenPins == nil) {
+	if cfg.Pin == "" && (cfg.GrabPins == nil || cfg.OpenPins == nil) {
 		return nil, utils.NewConfigValidationError(path, errors.New("either pin or grab_pins and open_pins must be specified"))
 	}
 
@@ -124,7 +124,7 @@ type myGripperPress struct {
 
 	conf *ConfigPress
 
-	pins map[string]string
+	pins  map[string]string
 	board board.Board
 
 	open bool
