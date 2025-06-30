@@ -163,14 +163,8 @@ func (g *myGripperPress) Grab(ctx context.Context, extra map[string]interface{})
 		}
 	}
 
-	// Set open pins to their inactive state
-	err := g.setPins(ctx, g.conf.OpenPins, false, extra)
-	if err != nil {
-		return false, err
-	}
-
 	// Set the grab pins to their active state
-	err = g.setPins(ctx, g.conf.GrabPins, true, extra)
+	err := g.setPins(ctx, g.conf.GrabPins, true, extra)
 	if err != nil {
 		return false, err
 	}
@@ -229,7 +223,7 @@ func (g *myGripperPress) Open(ctx context.Context, extra map[string]interface{})
 		if err != nil {
 			return err
 		}
-		g.open = false
+		g.open = true
 		// Return early if no grab time is specified
 		if *g.conf.Seconds == 0 {
 			return nil
@@ -250,14 +244,8 @@ func (g *myGripperPress) Open(ctx context.Context, extra map[string]interface{})
 		}
 	}
 
-	// Set grab pins to their inactive state
-	err := g.setPins(ctx, g.conf.GrabPins, false, extra)
-	if err != nil {
-		return err
-	}
-
 	// Set the open pins to their active state
-	err = g.setPins(ctx, g.conf.OpenPins, true, extra)
+	err := g.setPins(ctx, g.conf.OpenPins, true, extra)
 	if err != nil {
 		return err
 	}
