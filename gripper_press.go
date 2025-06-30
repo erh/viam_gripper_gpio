@@ -2,6 +2,7 @@ package viam_gripper_gpio
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"go.viam.com/rdk/components/board"
@@ -16,9 +17,14 @@ import (
 var GripperPressModel = family.WithModel("gripper-press")
 
 type ConfigPress struct {
-	Board   string
-	Pin     string
-	Seconds int
+	Board    string
+	Pin      string // The pin to use for the gripper, if not using grab_pins or open_pins
+	Seconds  *int
+	GrabPins map[string]string `json:"grab_pins"`
+	OpenPins map[string]string `json:"open_pins"`
+	WaitPins map[string]string `json:"wait_pins,omitempty"`
+	OpenTime *int              `json:"open_time_ms,omitempty"`
+	GrabTime *int              `json:"grab_time_ms,omitempty"`
 }
 
 func (cfg *ConfigPress) Validate(path string) ([]string, error) {
@@ -26,12 +32,35 @@ func (cfg *ConfigPress) Validate(path string) ([]string, error) {
 		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
-	if cfg.Pin == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+	if cfg.Pin == "" && (cfg.GrabPins == nil || cfg.OpenPins == nil) {
+		return nil, utils.NewConfigValidationError(path, errors.New("either pin or grab_pins and open_pins must be specified"))
+	}
+
+	if cfg.Pin != "" && (len(cfg.GrabPins) > 0 || len(cfg.OpenPins) > 0 || len(cfg.WaitPins) > 0) {
+		return nil, utils.NewConfigValidationError(path, errors.New("pin cannot be used with grab_pins, open_pins, or wait_pins"))
+	}
+
+	if cfg.Pin == "" && len(cfg.GrabPins) == 0 {
+		return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must not be empty"))
+	}
+
+	if cfg.Pin == "" && len(cfg.OpenPins) == 0 {
+		return nil, utils.NewConfigValidationError(path, errors.New("open_pins must not be empty"))
+	}
+
+	for _, state := range cfg.GrabPins {
+		if state != "high" && state != "low" {
+			return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
+		}
+	}
+
+	for _, state := range cfg.OpenPins {
+		if state != "high" && state != "low" {
+			return nil, utils.NewConfigValidationError(path, errors.New("open_pins must be 'high' or 'low'"))
+		}
 	}
 
 	return []string{cfg.Board}, nil
-
 }
 
 func init() {
@@ -51,20 +80,29 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 
 	g := &myGripperPress{
 		name: config.ResourceName(),
-		mf:   referenceframe.NewSimpleModel("foo"),
+		mf:   referenceframe.NewSimpleModel(config.ResourceName().String()),
 		conf: newConf,
 	}
 
-	if g.conf.Seconds <= 0 {
-		g.conf.Seconds = 3
+	if g.conf.Seconds == nil {
+		defaultSeconds := 3
+		g.conf.Seconds = &defaultSeconds
 	}
 
-	b, err := board.FromDependencies(deps, newConf.Board)
-	if err != nil {
-		return nil, err
+	defaultSecondsMs := 3000
+	if g.conf.GrabTime == nil {
+		g.conf.GrabTime = &defaultSecondsMs
 	}
 
-	g.pin, err = b.GPIOPinByName(newConf.Pin)
+	if g.conf.OpenTime == nil {
+		g.conf.OpenTime = &defaultSecondsMs
+	}
+
+	if g.conf.Pin != "" {
+		g.pins = map[string]string{g.conf.Pin: "high"}
+	}
+
+	g.board, err = board.FromDependencies(deps, newConf.Board)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +118,8 @@ type myGripperPress struct {
 
 	conf *ConfigPress
 
-	pin board.GPIOPin
+	pins  map[string]string
+	board board.Board
 
 	open bool
 }
@@ -96,25 +135,143 @@ func (g *myGripperPress) Grab(ctx context.Context, extra map[string]interface{})
 	if !force(extra) && !g.open {
 		return false, nil
 	}
+
+	// If the "Pin" field is set, only use that pin to control grab/open
+	if len(g.pins) != 0 {
+		err := g.setPins(ctx, g.pins, true, extra)
+		if err != nil {
+			return false, err
+		}
+		g.open = false
+		// Return early if no grab time is specified
+		if *g.conf.Seconds == 0 {
+			return false, nil
+		}
+		time.Sleep(time.Second * time.Duration(*g.conf.Seconds))
+		err = g.setPins(ctx, g.pins, false, extra)
+		if err != nil {
+			return false, err
+		}
+		return false, nil
+	}
+
+	// Set any wait pins to their active state
+	if len(g.conf.WaitPins) > 0 {
+		err := g.setPins(ctx, g.conf.WaitPins, true, extra)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	// Set the grab pins to their active state
+	err := g.setPins(ctx, g.conf.GrabPins, true, extra)
+	if err != nil {
+		return false, err
+	}
 	g.open = false
-	return false, g.press(ctx, extra)
+
+	// Return early if no grab time is specified
+	if *g.conf.GrabTime == 0 || *g.conf.Seconds == 0 {
+		return false, nil
+	}
+	time.Sleep(time.Millisecond * time.Duration(*g.conf.GrabTime))
+
+	// Set the grab pins to their inactive state
+	err = g.setPins(ctx, g.conf.GrabPins, false, extra)
+	if err != nil {
+		return false, err
+	}
+
+	// Set any wait pins to their inactive state
+	if len(g.conf.WaitPins) > 0 {
+		err = g.setPins(ctx, g.conf.WaitPins, false, extra)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
 }
 
-func (g *myGripperPress) press(ctx context.Context, extra map[string]interface{}) error {
-	err := g.pin.Set(ctx, true, extra)
-	if err != nil {
-		return err
+func (g *myGripperPress) setPins(ctx context.Context, pins map[string]string, activate bool, extra map[string]interface{}) error {
+	for pinName, level := range pins {
+		pin, err := g.board.GPIOPinByName(pinName)
+		if err != nil {
+			return err
+		}
+		state := level == "high"
+		if !activate {
+			state = !state
+		}
+		err = pin.Set(ctx, state, extra)
+		if err != nil {
+			return err
+		}
 	}
-	time.Sleep(time.Second * time.Duration(g.conf.Seconds))
-	return g.pin.Set(ctx, false, extra)
+
+	return nil
 }
 
 func (g *myGripperPress) Open(ctx context.Context, extra map[string]interface{}) error {
 	if !force(extra) && g.open {
 		return nil
 	}
+
+	// If the "Pin" field is set, only use that pin to control grab/open
+	if len(g.pins) != 0 {
+		err := g.setPins(ctx, g.pins, true, extra)
+		if err != nil {
+			return err
+		}
+		g.open = true
+		// Return early if no grab time is specified
+		if *g.conf.Seconds == 0 {
+			return nil
+		}
+		time.Sleep(time.Second * time.Duration(*g.conf.Seconds))
+		err = g.setPins(ctx, g.pins, false, extra)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Set any wait pins to their active state
+	if len(g.conf.WaitPins) > 0 {
+		err := g.setPins(ctx, g.conf.WaitPins, true, extra)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Set the open pins to their active state
+	err := g.setPins(ctx, g.conf.OpenPins, true, extra)
+	if err != nil {
+		return err
+	}
 	g.open = true
-	return g.press(ctx, extra)
+
+	// Return early if no open time is specified
+	if *g.conf.OpenTime == 0 || *g.conf.Seconds == 0 {
+		return nil
+	}
+	time.Sleep(time.Millisecond * time.Duration(*g.conf.OpenTime))
+
+	// Set the open pins to their inactive state
+	err = g.setPins(ctx, g.conf.OpenPins, false, extra)
+	if err != nil {
+		return err
+	}
+
+	// Set any wait pins to their inactive state
+	if len(g.conf.WaitPins) > 0 {
+		err = g.setPins(ctx, g.conf.WaitPins, false, extra)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (g *myGripperPress) Name() resource.Name {
