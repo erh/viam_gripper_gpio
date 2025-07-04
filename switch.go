@@ -18,16 +18,16 @@ type ConfigSwitch struct {
 	Pin   string
 }
 
-func (cfg *ConfigSwitch) Validate(path string) ([]string, error) {
+func (cfg *ConfigSwitch) Validate(path string) ([]string, []string, error) {
 	if cfg.Board == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
 	if cfg.Pin == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
 	}
 
-	return []string{cfg.Board}, nil
+	return []string{cfg.Board}, nil, nil
 }
 
 func init() {
@@ -103,6 +103,6 @@ func (g *switchData) GetPosition(ctx context.Context, extra map[string]interface
 	return g.position, nil
 }
 
-func (g *switchData) GetNumberOfPositions(ctx context.Context, extra map[string]interface{}) (uint32, error) {
-	return 2, nil
+func (g *switchData) GetNumberOfPositions(ctx context.Context, extra map[string]interface{}) (uint32, []string, error) {
+	return 2, []string{"off", "on"}, nil
 }

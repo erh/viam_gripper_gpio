@@ -2,6 +2,7 @@ package viam_gripper_gpio
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.viam.com/rdk/components/board"
@@ -21,16 +22,16 @@ type ConfigPress struct {
 	Seconds int
 }
 
-func (cfg *ConfigPress) Validate(path string) ([]string, error) {
+func (cfg *ConfigPress) Validate(path string) ([]string, []string, error) {
 	if cfg.Board == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
 	if cfg.Pin == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
 	}
 
-	return []string{cfg.Board}, nil
+	return []string{cfg.Board}, nil, nil
 
 }
 
@@ -143,4 +144,20 @@ func (g *myGripperPress) Geometries(context.Context, map[string]interface{}) ([]
 
 func (g *myGripperPress) ModelFrame() referenceframe.Model {
 	return g.mf
+}
+
+func (g *myGripperPress) CurrentInputs(ctx context.Context) ([]referenceframe.Input, error) {
+	return []referenceframe.Input{}, nil
+}
+
+func (g *myGripperPress) GoToInputs(ctx context.Context, inputs ...[]referenceframe.Input) error {
+	return fmt.Errorf("GoToInputs not implemented")
+}
+
+func (g *myGripperPress) IsHoldingSomething(ctx context.Context, extra map[string]interface{}) (gripper.HoldingStatus, error) {
+	return gripper.HoldingStatus{}, fmt.Errorf("IsHoldingSomething not implemented")
+}
+
+func (g *myGripperPress) Kinematics(ctx context.Context) (referenceframe.Model, error) {
+	return g.mf, nil
 }
