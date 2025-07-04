@@ -16,9 +16,10 @@ import (
 var GripperModel = resource.ModelNamespace("erh").WithFamily("viam_gripper_gpio").WithModel("gripper")
 
 type GripperConfig struct {
-	Board    string
-	Pin      string
-	OpenHigh bool `json:"open_high"`
+	Board      string
+	Pin        string
+	OpenHigh   bool `json:"open_high"`
+	Geometries []spatialmath.GeometryConfig
 }
 
 func (cfg *GripperConfig) Validate(path string) ([]string, []string, error) {
@@ -51,7 +52,6 @@ func newGripper(ctx context.Context, deps resource.Dependencies, config resource
 
 	g := &myGripper{
 		name: config.ResourceName(),
-		mf:   referenceframe.NewSimpleModel("foo"),
 		conf: newConf,
 	}
 
@@ -65,6 +65,15 @@ func newGripper(ctx context.Context, deps resource.Dependencies, config resource
 		return nil, err
 	}
 
+	g.geometries, err = ParseGeometries(newConf.Geometries)
+	if err != nil {
+		return nil, err
+	}
+	g.mf, err = gripper.MakeModel(g.name.ShortName(), g.geometries)
+	if err != nil {
+		return nil, err
+	}
+
 	return g, nil
 }
 
@@ -74,7 +83,8 @@ type myGripper struct {
 	name resource.Name
 	mf   referenceframe.Model
 
-	conf *GripperConfig
+	conf       *GripperConfig
+	geometries []spatialmath.Geometry
 
 	pin board.GPIOPin
 }
@@ -108,7 +118,7 @@ func (g *myGripper) Stop(context.Context, map[string]interface{}) error {
 }
 
 func (g *myGripper) Geometries(context.Context, map[string]interface{}) ([]spatialmath.Geometry, error) {
-	return []spatialmath.Geometry{}, nil
+	return g.geometries, nil
 }
 
 func (g *myGripper) ModelFrame() referenceframe.Model {

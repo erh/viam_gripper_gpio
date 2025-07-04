@@ -17,9 +17,10 @@ import (
 var GripperPressModel = family.WithModel("gripper-press")
 
 type ConfigPress struct {
-	Board   string
-	Pin     string
-	Seconds int
+	Board      string
+	Pin        string
+	Seconds    int
+	Geometries []spatialmath.GeometryConfig
 }
 
 func (cfg *ConfigPress) Validate(path string) ([]string, []string, error) {
@@ -52,7 +53,6 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 
 	g := &myGripperPress{
 		name: config.ResourceName(),
-		mf:   referenceframe.NewSimpleModel("foo"),
 		conf: newConf,
 	}
 
@@ -70,6 +70,15 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 		return nil, err
 	}
 
+	g.geometries, err = ParseGeometries(newConf.Geometries)
+	if err != nil {
+		return nil, err
+	}
+	g.mf, err = gripper.MakeModel(g.name.ShortName(), g.geometries)
+	if err != nil {
+		return nil, err
+	}
+
 	return g, nil
 }
 
@@ -79,7 +88,8 @@ type myGripperPress struct {
 	name resource.Name
 	mf   referenceframe.Model
 
-	conf *ConfigPress
+	conf       *ConfigPress
+	geometries []spatialmath.Geometry
 
 	pin board.GPIOPin
 
@@ -139,7 +149,7 @@ func (g *myGripperPress) Stop(context.Context, map[string]interface{}) error {
 }
 
 func (g *myGripperPress) Geometries(context.Context, map[string]interface{}) ([]spatialmath.Geometry, error) {
-	return []spatialmath.Geometry{}, nil
+	return g.geometries, nil
 }
 
 func (g *myGripperPress) ModelFrame() referenceframe.Model {
