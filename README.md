@@ -4,6 +4,8 @@ https://app.viam.com/module/erh/gripper-gpio
 
 # gripper
 GPIO Controlled Gripper where open close is high or low
+
+For single pin support:
 ```
 {
   "board": "local",
@@ -12,33 +14,30 @@ GPIO Controlled Gripper where open close is high or low
 }
 ```
 
-# gripper-press
-GPIO Controlled Gripper where it holds down gpio to open or close
-
-For single pin support:
-```
-{
-  "board": "local",
-  "pin": "37",
-  "seconds" : 3// optional
-}
-```
-
 For multi pin support:
 ```
 {
   "board": "local",
   "grab_pins": {
-    "16": "high"
+    "11": "high",
+    "16": "high",
+    "18": "low"
   },
   "open_pins": {
-    "18": "low""
-  },
-  "wait_pins": {
-    "11": "high"
-  },
-  "grab_time_ms": 0, // optional; 0 means no timeout
-  "open_time_ms": 500, // optional; 0 means no timeout
+    "11": "high",
+    "16": "low",
+    "18": "high"
+  }
+}
+```
+
+# gripper-press
+GPIO Controlled Gripper where it holds down gpio to open or close
+```
+{
+  "board": "local",
+  "pin": "37",
+  "seconds" : 3// optional
 }
 ```
 
