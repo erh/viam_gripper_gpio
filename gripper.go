@@ -2,6 +2,7 @@ package viam_gripper_gpio
 
 import (
 	"context"
+	"errors"
 
 	"go.viam.com/rdk/components/board"
 	"go.viam.com/rdk/components/gripper"
@@ -27,8 +28,32 @@ func (cfg *Config) Validate(path string) ([]string, error) {
 		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
-	if cfg.Pin == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+	if cfg.Pin == "" && (cfg.GrabPins == nil || cfg.OpenPins == nil) {
+		return nil, utils.NewConfigValidationError(path, errors.New("either pin or grab_pins and open_pins must be specified"))
+	}
+
+	if cfg.Pin != "" && (len(cfg.GrabPins) > 0 || len(cfg.OpenPins) > 0) {
+		return nil, utils.NewConfigValidationError(path, errors.New("pin cannot be used with grab_pins, open_pins, or wait_pins"))
+	}
+
+	if cfg.Pin == "" && len(cfg.GrabPins) == 0 {
+		return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must not be empty"))
+	}
+
+	if cfg.Pin == "" && len(cfg.OpenPins) == 0 {
+		return nil, utils.NewConfigValidationError(path, errors.New("open_pins must not be empty"))
+	}
+
+	for _, state := range cfg.GrabPins {
+		if state != "high" && state != "low" {
+			return nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
+		}
+	}
+
+	for _, state := range cfg.OpenPins {
+		if state != "high" && state != "low" {
+			return nil, utils.NewConfigValidationError(path, errors.New("open_pins must be 'high' or 'low'"))
+		}
 	}
 
 	return []string{cfg.Board}, nil
@@ -52,20 +77,11 @@ func newGripper(ctx context.Context, deps resource.Dependencies, config resource
 
 	g := &myGripper{
 		name: config.ResourceName(),
-		mf:   referenceframe.NewSimpleModel("foo"),
+		mf:   referenceframe.NewSimpleModel(config.ResourceName().String()),
 		conf: newConf,
 	}
 
-	if g.conf.Pin == "" {
-		if g.conf.OpenHigh {
-			state := "high"
-		} else {
-			state = "low"
-		}
-		g.pins = map[string]string{g.conf.Pin: state}
-	}
-
-	g.board, err := board.FromDependencies(deps, newConf.Board)
+	g.board, err = board.FromDependencies(deps, newConf.Board)
 	if err != nil {
 		return nil, err
 	}
