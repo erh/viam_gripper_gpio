@@ -18,6 +18,8 @@ type Config struct {
 	Board    string
 	Pin      string
 	OpenHigh bool `json:"open_high"`
+	GrabPins map[string]string `json:"grab_pins,omitempty"`
+	OpenPins map[string]string `json:"open_pins,omitempty"`
 }
 
 func (cfg *Config) Validate(path string) ([]string, error) {
@@ -54,12 +56,16 @@ func newGripper(ctx context.Context, deps resource.Dependencies, config resource
 		conf: newConf,
 	}
 
-	b, err := board.FromDependencies(deps, newConf.Board)
-	if err != nil {
-		return nil, err
+	if g.conf.Pin == "" {
+		if g.conf.OpenHigh {
+			state := "high"
+		} else {
+			state = "low"
+		}
+		g.pins = map[string]string{g.conf.Pin: state}
 	}
 
-	g.pin, err = b.GPIOPinByName(newConf.Pin)
+	g.board, err := board.FromDependencies(deps, newConf.Board)
 	if err != nil {
 		return nil, err
 	}
@@ -76,14 +82,45 @@ type myGripper struct {
 	conf *Config
 
 	pin board.GPIOPin
+	board board.Board
 }
 
 func (g *myGripper) Grab(ctx context.Context, extra map[string]interface{}) (bool, error) {
-	return false, g.pin.Set(ctx, !g.conf.OpenHigh, extra)
+	if g.conf.Pin != "" {
+		return false, g.pin.Set(ctx, !g.conf.OpenHigh, extra)
+	}
+
+	for pinName, state := range g.conf.GrabPins {
+		pin, err := g.board.GPIOPinByName(pinName)
+		if err != nil {
+			return false, err
+		}
+		err = pin.Set(ctx, state, extra)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	return false, nil
 }
 
 func (g *myGripper) Open(ctx context.Context, extra map[string]interface{}) error {
-	return g.pin.Set(ctx, g.conf.OpenHigh, extra)
+	if g.conf.Pin != "" {
+		return g.pin.Set(ctx, g.conf.OpenHigh, extra)
+	}
+
+	for pinName, state := range g.conf.OpenPins {
+		pin, err := g.board.GPIOPinByName(pinName)
+		if err != nil {
+			return err
+		}
+		err = pin.Set(ctx, state, extra)
+		if err != nil {
+			return err
+		}
+	}
+	
+	return nil
 }
 
 func (g *myGripper) Name() resource.Name {
