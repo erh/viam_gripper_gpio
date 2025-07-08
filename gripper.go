@@ -90,11 +90,12 @@ func (g *myGripper) Grab(ctx context.Context, extra map[string]interface{}) (boo
 		return false, g.pin.Set(ctx, !g.conf.OpenHigh, extra)
 	}
 
-	for pinName, state := range g.conf.GrabPins {
+	for pinName, level := range g.conf.GrabPins {
 		pin, err := g.board.GPIOPinByName(pinName)
 		if err != nil {
 			return false, err
 		}
+		state := level == "high"
 		err = pin.Set(ctx, state, extra)
 		if err != nil {
 			return false, err
@@ -109,17 +110,18 @@ func (g *myGripper) Open(ctx context.Context, extra map[string]interface{}) erro
 		return g.pin.Set(ctx, g.conf.OpenHigh, extra)
 	}
 
-	for pinName, state := range g.conf.OpenPins {
+	for pinName, level := range g.conf.OpenPins {
 		pin, err := g.board.GPIOPinByName(pinName)
 		if err != nil {
 			return err
 		}
+		state := level == "high"
 		err = pin.Set(ctx, state, extra)
 		if err != nil {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
