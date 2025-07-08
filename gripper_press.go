@@ -2,6 +2,7 @@ package viam_gripper_gpio
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"go.viam.com/rdk/components/board"
@@ -16,21 +17,22 @@ import (
 var GripperPressModel = family.WithModel("gripper-press")
 
 type ConfigPress struct {
-	Board   string
-	Pin     string
-	Seconds int
+	Board      string
+	Pin        string
+	Seconds    int
+	Geometries []spatialmath.GeometryConfig
 }
 
-func (cfg *ConfigPress) Validate(path string) ([]string, error) {
+func (cfg *ConfigPress) Validate(path string) ([]string, []string, error) {
 	if cfg.Board == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
 	if cfg.Pin == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
 	}
 
-	return []string{cfg.Board}, nil
+	return []string{cfg.Board}, nil, nil
 
 }
 
@@ -51,7 +53,6 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 
 	g := &myGripperPress{
 		name: config.ResourceName(),
-		mf:   referenceframe.NewSimpleModel("foo"),
 		conf: newConf,
 	}
 
@@ -69,6 +70,15 @@ func newGripperPress(ctx context.Context, deps resource.Dependencies, config res
 		return nil, err
 	}
 
+	g.geometries, err = ParseGeometries(newConf.Geometries)
+	if err != nil {
+		return nil, err
+	}
+	g.mf, err = gripper.MakeModel(g.name.ShortName(), g.geometries)
+	if err != nil {
+		return nil, err
+	}
+
 	return g, nil
 }
 
@@ -78,7 +88,8 @@ type myGripperPress struct {
 	name resource.Name
 	mf   referenceframe.Model
 
-	conf *ConfigPress
+	conf       *ConfigPress
+	geometries []spatialmath.Geometry
 
 	pin board.GPIOPin
 
@@ -138,9 +149,25 @@ func (g *myGripperPress) Stop(context.Context, map[string]interface{}) error {
 }
 
 func (g *myGripperPress) Geometries(context.Context, map[string]interface{}) ([]spatialmath.Geometry, error) {
-	return []spatialmath.Geometry{}, nil
+	return g.geometries, nil
 }
 
 func (g *myGripperPress) ModelFrame() referenceframe.Model {
 	return g.mf
+}
+
+func (g *myGripperPress) CurrentInputs(ctx context.Context) ([]referenceframe.Input, error) {
+	return []referenceframe.Input{}, nil
+}
+
+func (g *myGripperPress) GoToInputs(ctx context.Context, inputs ...[]referenceframe.Input) error {
+	return fmt.Errorf("GoToInputs not implemented")
+}
+
+func (g *myGripperPress) IsHoldingSomething(ctx context.Context, extra map[string]interface{}) (gripper.HoldingStatus, error) {
+	return gripper.HoldingStatus{}, fmt.Errorf("IsHoldingSomething not implemented")
+}
+
+func (g *myGripperPress) Kinematics(ctx context.Context) (referenceframe.Model, error) {
+	return g.mf, nil
 }

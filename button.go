@@ -19,16 +19,16 @@ type ConfigButton struct {
 	Seconds int
 }
 
-func (cfg *ConfigButton) Validate(path string) ([]string, error) {
+func (cfg *ConfigButton) Validate(path string) ([]string, []string, error) {
 	if cfg.Board == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "board")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
 	if cfg.Pin == "" {
-		return nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
 	}
 
-	return []string{cfg.Board}, nil
+	return []string{cfg.Board}, nil, nil
 }
 
 func init() {
