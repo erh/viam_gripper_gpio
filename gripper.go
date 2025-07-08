@@ -16,14 +16,13 @@ import (
 
 var GripperModel = resource.ModelNamespace("erh").WithFamily("viam_gripper_gpio").WithModel("gripper")
 
-type Config struct {
-	Board    string
-	Pin      string
-	OpenHigh bool `json:"open_high"`
-	GrabPins map[string]string `json:"grab_pins,omitempty"`
-	OpenPins map[string]string `json:"open_pins,omitempty"`
-  Geometries []spatialmath.GeometryConfig
-
+type GripperConfig struct {
+	Board      string
+	Pin        string
+	OpenHigh   bool              `json:"open_high"`
+	GrabPins   map[string]string `json:"grab_pins,omitempty"`
+	OpenPins   map[string]string `json:"open_pins,omitempty"`
+	Geometries []spatialmath.GeometryConfig
 }
 
 func (cfg *GripperConfig) Validate(path string) ([]string, []string, error) {
@@ -109,7 +108,7 @@ type myGripper struct {
 	conf       *GripperConfig
 	geometries []spatialmath.Geometry
 
-	pin board.GPIOPin
+	pin   board.GPIOPin
 	board board.Board
 }
 
