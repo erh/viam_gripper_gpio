@@ -2,6 +2,7 @@ package viam_gripper_gpio
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"go.viam.com/rdk/components/board"
@@ -18,7 +19,9 @@ var GripperModel = resource.ModelNamespace("erh").WithFamily("viam_gripper_gpio"
 type GripperConfig struct {
 	Board      string
 	Pin        string
-	OpenHigh   bool `json:"open_high"`
+	OpenHigh   bool              `json:"open_high"`
+	GrabPins   map[string]string `json:"grab_pins,omitempty"`
+	OpenPins   map[string]string `json:"open_pins,omitempty"`
 	Geometries []spatialmath.GeometryConfig
 }
 
@@ -27,8 +30,32 @@ func (cfg *GripperConfig) Validate(path string) ([]string, []string, error) {
 		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "board")
 	}
 
-	if cfg.Pin == "" {
-		return nil, nil, utils.NewConfigValidationFieldRequiredError(path, "pin")
+	if cfg.Pin == "" && (cfg.GrabPins == nil || cfg.OpenPins == nil) {
+		return nil, nil, utils.NewConfigValidationError(path, errors.New("either pin or grab_pins and open_pins must be specified"))
+	}
+
+	if cfg.Pin != "" && (len(cfg.GrabPins) > 0 || len(cfg.OpenPins) > 0) {
+		return nil, nil, utils.NewConfigValidationError(path, errors.New("pin cannot be used with grab_pins, open_pins, or wait_pins"))
+	}
+
+	if cfg.Pin == "" && len(cfg.GrabPins) == 0 {
+		return nil, nil, utils.NewConfigValidationError(path, errors.New("grab_pins must not be empty"))
+	}
+
+	if cfg.Pin == "" && len(cfg.OpenPins) == 0 {
+		return nil, nil, utils.NewConfigValidationError(path, errors.New("open_pins must not be empty"))
+	}
+
+	for _, state := range cfg.GrabPins {
+		if state != "high" && state != "low" {
+			return nil, nil, utils.NewConfigValidationError(path, errors.New("grab_pins must be 'high' or 'low'"))
+		}
+	}
+
+	for _, state := range cfg.OpenPins {
+		if state != "high" && state != "low" {
+			return nil, nil, utils.NewConfigValidationError(path, errors.New("open_pins must be 'high' or 'low'"))
+		}
 	}
 
 	return []string{cfg.Board}, nil, nil
@@ -55,12 +82,7 @@ func newGripper(ctx context.Context, deps resource.Dependencies, config resource
 		conf: newConf,
 	}
 
-	b, err := board.FromDependencies(deps, newConf.Board)
-	if err != nil {
-		return nil, err
-	}
-
-	g.pin, err = b.GPIOPinByName(newConf.Pin)
+	g.board, err = board.FromDependencies(deps, newConf.Board)
 	if err != nil {
 		return nil, err
 	}
@@ -86,15 +108,50 @@ type myGripper struct {
 	conf       *GripperConfig
 	geometries []spatialmath.Geometry
 
-	pin board.GPIOPin
+	pin   board.GPIOPin
+	board board.Board
+}
+
+func (g *myGripper) SetPins(ctx context.Context, pins map[string]string, extra map[string]interface{}) error {
+	for pinName, level := range pins {
+		pin, err := g.board.GPIOPinByName(pinName)
+		if err != nil {
+			return fmt.Errorf("failed to get pin %s: %w", pinName, err)
+		}
+		state := level == "high"
+		err = pin.Set(ctx, state, extra)
+		if err != nil {
+			return fmt.Errorf("failed to set pin %s to %s: %w", pinName, level, err)
+		}
+	}
+
+	return nil
 }
 
 func (g *myGripper) Grab(ctx context.Context, extra map[string]interface{}) (bool, error) {
-	return false, g.pin.Set(ctx, !g.conf.OpenHigh, extra)
+	if g.conf.Pin != "" {
+		return false, g.pin.Set(ctx, !g.conf.OpenHigh, extra)
+	}
+
+	err := g.SetPins(ctx, g.conf.GrabPins, extra)
+	if err != nil {
+		return false, fmt.Errorf("failed to set grab pins: %w", err)
+	}
+
+	return false, nil
 }
 
 func (g *myGripper) Open(ctx context.Context, extra map[string]interface{}) error {
-	return g.pin.Set(ctx, g.conf.OpenHigh, extra)
+	if g.conf.Pin != "" {
+		return g.pin.Set(ctx, g.conf.OpenHigh, extra)
+	}
+
+	err := g.SetPins(ctx, g.conf.OpenPins, extra)
+	if err != nil {
+		return fmt.Errorf("failed to set open pins: %w", err)
+	}
+
+	return nil
 }
 
 func (g *myGripper) Name() resource.Name {

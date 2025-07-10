@@ -4,6 +4,8 @@ https://app.viam.com/module/erh/gripper-gpio
 
 # gripper
 GPIO Controlled Gripper where open close is high or low
+
+For single pin support:
 ```
 {
   "board": "local",
@@ -11,6 +13,23 @@ GPIO Controlled Gripper where open close is high or low
   "open_high" : <bool> // optional, default-false; false means open is low
   "geometries" : [ { "type" : "box", "x" : 100, "y": 100, "z" : 100 } ] <optional>
 
+}
+```
+
+For multi pin support:
+```
+{
+  "board": "local",
+  "grab_pins": {
+    "11": "high",
+    "16": "high",
+    "18": "low"
+  },
+  "open_pins": {
+    "11": "high",
+    "16": "low",
+    "18": "high"
+  }
 }
 ```
 
