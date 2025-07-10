@@ -112,21 +112,30 @@ type myGripper struct {
 	board board.Board
 }
 
+func (g *myGripper) SetPins(ctx context.Context, pins map[string]string, extra map[string]interface{}) error {
+	for pinName, level := range pins {
+		pin, err := g.board.GPIOPinByName(pinName)
+		if err != nil {
+			return fmt.Errorf("failed to get pin %s: %w", pinName, err)
+		}
+		state := level == "high"
+		err = pin.Set(ctx, state, extra)
+		if err != nil {
+			return fmt.Errorf("failed to set pin %s to %s: %w", pinName, level, err)
+		}
+	}
+
+	return nil
+}
+
 func (g *myGripper) Grab(ctx context.Context, extra map[string]interface{}) (bool, error) {
 	if g.conf.Pin != "" {
 		return false, g.pin.Set(ctx, !g.conf.OpenHigh, extra)
 	}
 
-	for pinName, level := range g.conf.GrabPins {
-		pin, err := g.board.GPIOPinByName(pinName)
-		if err != nil {
-			return false, err
-		}
-		state := level == "high"
-		err = pin.Set(ctx, state, extra)
-		if err != nil {
-			return false, err
-		}
+	err := g.SetPins(ctx, g.conf.GrabPins, extra)
+	if err != nil {
+		return false, fmt.Errorf("failed to set grab pins: %w", err)
 	}
 
 	return false, nil
@@ -137,16 +146,9 @@ func (g *myGripper) Open(ctx context.Context, extra map[string]interface{}) erro
 		return g.pin.Set(ctx, g.conf.OpenHigh, extra)
 	}
 
-	for pinName, level := range g.conf.OpenPins {
-		pin, err := g.board.GPIOPinByName(pinName)
-		if err != nil {
-			return err
-		}
-		state := level == "high"
-		err = pin.Set(ctx, state, extra)
-		if err != nil {
-			return err
-		}
+	err := g.SetPins(ctx, g.conf.OpenPins, extra)
+	if err != nil {
+		return fmt.Errorf("failed to set open pins: %w", err)
 	}
 
 	return nil
