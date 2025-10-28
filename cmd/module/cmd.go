@@ -16,5 +16,6 @@ func main() {
 		resource.APIModel{gripper.API, viam_gripper_gpio.GripperPressModel},
 		resource.APIModel{button.API, viam_gripper_gpio.ButtonModel},
 		resource.APIModel{toggleswitch.API, viam_gripper_gpio.SwitchModel},
+		resource.APIModel{toggleswitch.API, viam_gripper_gpio.SwitchModelOneOf},
 	)
 }

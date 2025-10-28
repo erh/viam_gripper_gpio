@@ -24,12 +24,19 @@
       "markdown_link": "README.md#button",
       "short_description": "GPIO Button"
     },
-     {
+    {
       "api": "rdk:component:switch",
       "model": "erh:viam_gripper_gpio:switch",
       "markdown_link": "README.md#switch",
       "short_description": "GPIO Switch"
+    },
+    {
+      "api": "rdk:component:switch",
+      "model": "erh:viam_gripper_gpio:switch-one-of",
+      "markdown_link": "README.md#switch-one-of",
+      "short_description": "GPIO Switch One Of"
     }
+
 
 
   ],

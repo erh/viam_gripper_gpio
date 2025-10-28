@@ -63,3 +63,13 @@ Switch for gpio with 2 positions
   "pin": "37",
 }
 ```
+
+# switch one of
+Switch One Of for gpio with 
+```
+{
+  "board": "local",
+  "pins": ["37"],
+  "names" : ["foo"]
+}
+```
