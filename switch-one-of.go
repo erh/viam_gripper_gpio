@@ -94,7 +94,27 @@ func (g *switchDataOneOf) Close(ctx context.Context) error {
 }
 
 func (g *switchDataOneOf) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
-	return nil, nil
+	s, ok := cmd["set"]
+	if !ok {
+		return nil, fmt.Errorf("no set")
+	}
+
+	var err error
+
+	switch x := s.(type) {
+	case uint32:
+		err = g.SetPosition(ctx, x, nil)
+	case int:
+		err = g.SetPosition(ctx, uint32(x), nil)
+	case float64:
+		err = g.SetPosition(ctx, uint32(x), nil)
+	case int32:
+		err = g.SetPosition(ctx, uint32(x), nil)
+	default:
+		err = fmt.Errorf("bad type for 'set' %T %v", s, s)
+	}
+
+	return nil, err
 }
 
 func (g *switchDataOneOf) SetPosition(ctx context.Context, position uint32, extra map[string]interface{}) error {
