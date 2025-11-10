@@ -3,6 +3,7 @@ package viam_gripper_gpio
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.uber.org/multierr"
 
@@ -10,6 +11,7 @@ import (
 	"go.viam.com/rdk/components/switch"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
+	rutils "go.viam.com/rdk/utils"
 	"go.viam.com/utils"
 )
 
@@ -94,6 +96,31 @@ func (g *switchDataOneOf) Close(ctx context.Context) error {
 }
 
 func (g *switchDataOneOf) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
+
+	if cmd["cycle"] == true {
+
+		start := g.position
+
+		a := rutils.AttributeMap(cmd)
+
+		min := a.Int("min", 0)
+		max := a.Int("max", len(g.pins))
+		cycles := a.Int("cycles", 1)
+		sleepMillis := a.Int("sleep-millis", 500)
+
+		for range cycles {
+			for i := min; i < max; i++ {
+				err := g.SetPosition(ctx, uint32(i), nil)
+				if err != nil {
+					return nil, err
+				}
+				time.Sleep(time.Duration(sleepMillis) * time.Millisecond)
+			}
+		}
+
+		return nil, g.SetPosition(ctx, start, nil)
+	}
+
 	s, ok := cmd["set"]
 	if !ok {
 		return nil, fmt.Errorf("no set")
