@@ -103,8 +103,8 @@ func (g *switchDataOneOf) DoCommand(ctx context.Context, cmd map[string]interfac
 
 		a := rutils.AttributeMap(cmd)
 
-		min := a.Int("min", 0)
-		max := a.Int("max", len(g.pins))
+		min := a.Int("min", 1)
+		max := a.Int("max", 1 + len(g.pins))
 		cycles := a.Int("cycles", 1)
 		sleepMillis := a.Int("sleep-millis", 500)
 
