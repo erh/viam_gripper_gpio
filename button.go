@@ -83,8 +83,16 @@ func (g *buttonData) Push(ctx context.Context, extra map[string]interface{}) err
 	if err != nil {
 		return err
 	}
-	time.Sleep(time.Second * time.Duration(g.conf.Seconds))
-	return g.pin.Set(ctx, false, extra)
+	// Ensure pin is set to false even if context is cancelled
+	defer g.pin.Set(context.Background(), false, extra)
+
+	// Sleep but return early if context is cancelled
+	select {
+	case <-time.After(time.Second * time.Duration(g.conf.Seconds)):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func (g *buttonData) Name() resource.Name {
